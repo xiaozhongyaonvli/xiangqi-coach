@@ -10,3 +10,10 @@ A step-by-step Chinese Chess project built with vibe coding.
 
 ## Status
 🚧 In active development
+
+## CLI Demo
+A minimal interactive demo is available for manual exploration of the rules:
+
+```bash
+python -m xiangqi_cli_demo
+```
