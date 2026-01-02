@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>象棋 v1.0.0 - 本地对弈棋盘</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --board-bg: #f4e3c3;
+      --board-line: #b49560;
+      --square-light: #fdf7ec;
+      --square-dark: #f1d9b5;
+      --river: #d9ecff;
+      --red: #c0392b;
+      --black: #2c3e50;
+      --highlight: #f1c40f;
+      --accent: #16a085;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Inter", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+      margin: 0 auto;
+      max-width: 1000px;
+      padding: 24px;
+      background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.5), transparent 25%),
+        radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.35), transparent 30%),
+        linear-gradient(120deg, #f8f6f1, #fdfbf6 40%, #f3ede2 100%);
+      color: #1f2d3d;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      margin: 0 0 20px;
+      color: #586069;
+      font-size: 15px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) 280px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .board-wrapper {
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      border: 1px solid #ebe3d7;
+    }
+
+    .board-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 12px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #f0f7ff;
+      border-radius: 12px;
+      color: #1b4f72;
+      font-weight: 600;
+      border: 1px solid #d6e9ff;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      font: inherit;
+    }
+
+    .ghost-button {
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1px solid #d9d9d9;
+      background: white;
+      color: #34495e;
+      transition: all 0.15s ease;
+    }
+
+    .ghost-button:hover {
+      border-color: #16a085;
+      color: #16a085;
+      box-shadow: 0 4px 10px rgba(22, 160, 133, 0.1);
+    }
+
+    .board {
+      position: relative;
+      width: 100%;
+      max-width: 620px;
+      margin: 0 auto;
+      aspect-ratio: 9 / 10;
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      grid-template-rows: repeat(10, 1fr);
+      background: var(--board-bg);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid var(--board-line);
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+    }
+
+    .square {
+      position: relative;
+      border: 1px solid rgba(180, 149, 96, 0.6);
+      background: var(--square-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      transition: background 0.12s ease, transform 0.12s ease;
+    }
+
+    .square:nth-child(odd) {
+      background: var(--square-dark);
+    }
+
+    .square[data-river="true"] {
+      background: var(--river);
+    }
+
+    .square:hover {
+      transform: translateY(-1px);
+      background: #fef6df;
+    }
+
+    .square.selected {
+      outline: 2px solid var(--accent);
+      background: #e8f7f3;
+    }
+
+    .square.legal-target::after {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: rgba(22, 160, 133, 0.2);
+      border: 2px solid rgba(22, 160, 133, 0.6);
+    }
+
+    .square.last-move {
+      box-shadow: inset 0 0 0 2px rgba(241, 196, 15, 0.6);
+      background: #fff8dc;
+    }
+
+    .piece {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      border: 2px solid rgba(0, 0, 0, 0.08);
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      user-select: none;
+    }
+
+    .piece.red {
+      color: var(--red);
+    }
+
+    .piece.black {
+      color: var(--black);
+    }
+
+    .piece:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.14);
+    }
+
+    .labels {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 14px;
+      color: #4d596a;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 12px;
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #ebe3d7;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-panel {
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      border: 1px solid #ebe3d7;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    .status-title {
+      margin: 0 0 10px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .status-message {
+      margin: 0 0 12px;
+      color: #1f2d3d;
+      line-height: 1.6;
+    }
+
+    .hint {
+      font-size: 13px;
+      color: #6b7280;
+      margin: 0;
+    }
+
+    .inline-piece {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .inline-piece .piece {
+      width: 28px;
+      height: 28px;
+      font-size: 14px;
+      border-width: 1px;
+      box-shadow: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>象棋 v1.0.0 本地对弈</h1>
+    <p class="subtitle">根据 v1.0.0 前端页面需求：提供可点击棋盘、轮转走子、规则校验与将军/将死提示。</p>
+  </header>
+
+  <div class="layout">
+    <section class="board-wrapper">
+      <div class="board-header">
+        <div class="badge" id="turn-indicator">当前轮到：红方</div>
+        <div class="controls">
+          <button class="ghost-button" id="reset-button">重新开局</button>
+        </div>
+      </div>
+      <div class="board" id="board" aria-label="象棋棋盘"></div>
+      <div class="labels" aria-hidden="true">
+        <span>横轴：a - i</span>
+        <span>纵轴：0 - 9（红方视角自下而上）</span>
+      </div>
+    </section>
+
+    <aside class="status-panel">
+      <h2 class="status-title">对局信息</h2>
+      <p class="status-message" id="status">点击红方棋子开始走子，系统会阻止所有非法走法。</p>
+      <p class="hint">提示：点击棋子后会高亮可走位置，若选择非法目标会显示原因并保持轮次。</p>
+
+      <div class="legend">
+        <div class="legend-item">
+          <span class="piece red">帅</span><span>红方</span>
+        </div>
+        <div class="legend-item">
+          <span class="piece black">将</span><span>黑方</span>
+        </div>
+        <div class="legend-item">
+          <span class="piece" style="border-color: var(--accent); box-shadow: inset 0 0 0 2px rgba(22, 160, 133, 0.2);"></span>
+          <span>当前选中</span>
+        </div>
+        <div class="legend-item">
+          <span class="piece" style="border-color: var(--highlight); box-shadow: inset 0 0 0 2px rgba(241, 196, 15, 0.35);"></span>
+          <span>上一步走子</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const files = "abcdefghi".split("");
+    const Side = { RED: "red", BLACK: "black" };
+    const PieceType = {
+      KING: "king",
+      ADVISOR: "advisor",
+      ELEPHANT: "elephant",
+      HORSE: "horse",
+      ROOK: "rook",
+      CANNON: "cannon",
+      PAWN: "pawn",
+    };
+
+    const pieceSymbols = {
+      [PieceType.KING]: { red: "帅", black: "将" },
+      [PieceType.ADVISOR]: { red: "仕", black: "士" },
+      [PieceType.ELEPHANT]: { red: "相", black: "象" },
+      [PieceType.HORSE]: { red: "马", black: "马" },
+      [PieceType.ROOK]: { red: "车", black: "车" },
+      [PieceType.CANNON]: { red: "炮", black: "炮" },
+      [PieceType.PAWN]: { red: "兵", black: "卒" },
+    };
+
+    const state = {
+      board: createInitialBoard(),
+      sideToMove: Side.RED,
+      selected: null,
+      legalTargets: [],
+      lastMove: null,
+      status: "点击红方棋子开始走子，系统会阻止所有非法走法。",
+    };
+
+    const boardEl = document.getElementById("board");
+    const statusEl = document.getElementById("status");
+    const turnIndicator = document.getElementById("turn-indicator");
+    const resetButton = document.getElementById("reset-button");
+
+    resetButton.addEventListener("click", () => {
+      state.board = createInitialBoard();
+      state.sideToMove = Side.RED;
+      state.selected = null;
+      state.legalTargets = [];
+      state.lastMove = null;
+      state.status = "已重置局面，红方先行。";
+      render();
+    });
+
+    function coordKey(x, y) {
+      return `${x},${y}`;
+    }
+
+    function parseKey(key) {
+      const [x, y] = key.split(",").map(Number);
+      return { x, y };
+    }
+
+    function toHuman(key) {
+      const { x, y } = parseKey(key);
+      return `${files[x]}${y}`;
+    }
+
+    function opponent(side) {
+      return side === Side.RED ? Side.BLACK : Side.RED;
+    }
+
+    function createInitialBoard() {
+      const board = new Map();
+
+      const placeBackRank = (side, y) => {
+        const order = [
+          PieceType.ROOK,
+          PieceType.HORSE,
+          PieceType.ELEPHANT,
+          PieceType.ADVISOR,
+          PieceType.KING,
+          PieceType.ADVISOR,
+          PieceType.ELEPHANT,
+          PieceType.HORSE,
+          PieceType.ROOK,
+        ];
+        order.forEach((type, x) => board.set(coordKey(x, y), { side, type }));
+      };
+
+      const placeCannons = (side, y) => {
+        [1, 7].forEach((x) => board.set(coordKey(x, y), { side, type: PieceType.CANNON }));
+      };
+
+      const placePawns = (side, y) => {
+        [0, 2, 4, 6, 8].forEach((x) => board.set(coordKey(x, y), { side, type: PieceType.PAWN }));
+      };
+
+      placeBackRank(Side.RED, 0);
+      placeCannons(Side.RED, 2);
+      placePawns(Side.RED, 3);
+
+      placeBackRank(Side.BLACK, 9);
+      placeCannons(Side.BLACK, 7);
+      placePawns(Side.BLACK, 6);
+
+      return board;
+    }
+
+    function getPiece(board, key) {
+      return board.get(key) || null;
+    }
+
+    function cloneBoard(board) {
+      return new Map(board);
+    }
+
+    function inBounds(coord) {
+      return coord.x >= 0 && coord.x <= 8 && coord.y >= 0 && coord.y <= 9;
+    }
+
+    function countBlockers(board, start, end) {
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const stepX = Math.sign(dx);
+      const stepY = Math.sign(dy);
+
+      let x = start.x + stepX;
+      let y = start.y + stepY;
+      let blockers = 0;
+      while (x !== end.x || y !== end.y) {
+        if (board.has(coordKey(x, y))) {
+          blockers += 1;
+        }
+        x += stepX;
+        y += stepY;
+      }
+      return blockers;
+    }
+
+    function isOrthogonal(move) {
+      return move.from.x === move.to.x || move.from.y === move.to.y;
+    }
+
+    function inPalace(coord, side) {
+      if (side === Side.RED) return coord.x >= 3 && coord.x <= 5 && coord.y >= 0 && coord.y <= 2;
+      return coord.x >= 3 && coord.x <= 5 && coord.y >= 7 && coord.y <= 9;
+    }
+
+    function isPseudoLegalMove(board, move, sideToMove) {
+      const piece = getPiece(board, move.keyFrom);
+      if (!piece || piece.side !== sideToMove) return false;
+      if (!inBounds(move.from) || !inBounds(move.to)) return false;
+      if (move.keyFrom === move.keyTo) return false;
+
+      const target = getPiece(board, move.keyTo);
+      if (target && target.side === piece.side) return false;
+
+      switch (piece.type) {
+        case PieceType.ROOK:
+          return isRookMove(board, move);
+        case PieceType.CANNON:
+          return isCannonMove(board, move);
+        case PieceType.HORSE:
+          return isHorseMove(board, move);
+        case PieceType.ELEPHANT:
+          return isElephantMove(board, move, piece.side);
+        case PieceType.ADVISOR:
+          return isAdvisorMove(move, piece.side);
+        case PieceType.KING:
+          return isKingMove(move, piece.side);
+        case PieceType.PAWN:
+          return isPawnMove(move, piece.side);
+        default:
+          return false;
+      }
+    }
+
+    function isRookMove(board, move) {
+      if (!isOrthogonal(move)) return false;
+      return countBlockers(board, move.from, move.to) === 0;
+    }
+
+    function isCannonMove(board, move) {
+      if (!isOrthogonal(move)) return false;
+      const blockers = countBlockers(board, move.from, move.to);
+      const target = getPiece(board, move.keyTo);
+      if (!target) return blockers === 0;
+      return blockers === 1;
+    }
+
+    function isHorseMove(board, move) {
+      const dx = move.to.x - move.from.x;
+      const dy = move.to.y - move.from.y;
+      const delta = [Math.abs(dx), Math.abs(dy)].sort((a, b) => a - b);
+      if (delta[0] !== 1 || delta[1] !== 2) return false;
+
+      const blockSquare = Math.abs(dx) === 2
+        ? { x: move.from.x + dx / 2, y: move.from.y }
+        : { x: move.from.x, y: move.from.y + dy / 2 };
+      return !getPiece(board, coordKey(blockSquare.x, blockSquare.y));
+    }
+
+    function isElephantMove(board, move, side) {
+      const dx = move.to.x - move.from.x;
+      const dy = move.to.y - move.from.y;
+      if (Math.abs(dx) !== 2 || Math.abs(dy) !== 2) return false;
+
+      if (side === Side.RED && move.to.y > 4) return false;
+      if (side === Side.BLACK && move.to.y < 5) return false;
+
+      const blockSquare = { x: move.from.x + dx / 2, y: move.from.y + dy / 2 };
+      return !getPiece(board, coordKey(blockSquare.x, blockSquare.y));
+    }
+
+    function isAdvisorMove(move, side) {
+      const dx = Math.abs(move.to.x - move.from.x);
+      const dy = Math.abs(move.to.y - move.from.y);
+      if (dx !== 1 || dy !== 1) return false;
+      return inPalace(move.to, side);
+    }
+
+    function isKingMove(move, side) {
+      const dx = Math.abs(move.to.x - move.from.x);
+      const dy = Math.abs(move.to.y - move.from.y);
+      if (dx + dy !== 1) return false;
+      return inPalace(move.to, side);
+    }
+
+    function isPawnMove(move, side) {
+      const dx = move.to.x - move.from.x;
+      const dy = move.to.y - move.from.y;
+      const forward = side === Side.RED ? 1 : -1;
+      const crossedRiver = side === Side.RED ? move.from.y >= 5 : move.from.y <= 4;
+
+      if (dx === 0 && dy === forward) return true;
+      if (crossedRiver && Math.abs(dx) === 1 && dy === 0) return true;
+      return false;
+    }
+
+    function findKing(board, side) {
+      for (const [key, piece] of board.entries()) {
+        if (piece.type === PieceType.KING && piece.side === side) {
+          return parseKey(key);
+        }
+      }
+      return null;
+    }
+
+    function isSquareAttacked(board, bySide, square) {
+      for (const [key, piece] of board.entries()) {
+        if (piece.side !== bySide) continue;
+        const move = {
+          keyFrom: key,
+          keyTo: coordKey(square.x, square.y),
+          from: parseKey(key),
+          to: square,
+        };
+
+        if (piece.type === PieceType.KING && parseKey(key).x === square.x) {
+          if (countBlockers(board, parseKey(key), square) === 0) return true;
+        }
+
+        if (isPseudoLegalMove(board, move, bySide)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function isInCheck(board, side) {
+      const kingSquare = findKing(board, side);
+      if (!kingSquare) return false;
+      return isSquareAttacked(board, opponent(side), kingSquare);
+    }
+
+    function applyMove(board, move) {
+      const next = cloneBoard(board);
+      const movingPiece = getPiece(board, move.keyFrom);
+      next.delete(move.keyFrom);
+      next.set(move.keyTo, movingPiece);
+      return next;
+    }
+
+    function isLegalMove(board, sideToMove, move) {
+      if (!isPseudoLegalMove(board, move, sideToMove)) return false;
+      const simulated = applyMove(board, move);
+      return !isInCheck(simulated, sideToMove);
+    }
+
+    function generateLegalMoves(board, side) {
+      const moves = [];
+      for (const [key, piece] of board.entries()) {
+        if (piece.side !== side) continue;
+        const from = parseKey(key);
+        for (let x = 0; x < 9; x += 1) {
+          for (let y = 0; y < 10; y += 1) {
+            const toKey = coordKey(x, y);
+            const move = { keyFrom: key, keyTo: toKey, from, to: { x, y } };
+            if (isLegalMove(board, side, move)) moves.push(move);
+          }
+        }
+      }
+      return moves;
+    }
+
+    function isCheckmate(board, side) {
+      if (!isInCheck(board, side)) return false;
+      return generateLegalMoves(board, side).length === 0;
+    }
+
+    function legalMovesFrom(board, side, keyFrom) {
+      const from = parseKey(keyFrom);
+      const moves = [];
+      for (let x = 0; x < 9; x += 1) {
+        for (let y = 0; y < 10; y += 1) {
+          const toKey = coordKey(x, y);
+          const move = { keyFrom, keyTo: toKey, from, to: { x, y } };
+          if (isLegalMove(board, side, move)) moves.push(move);
+        }
+      }
+      return moves;
+    }
+
+    function updateStatusAfterMove() {
+      const side = state.sideToMove;
+      const check = isInCheck(state.board, side);
+      const mate = check && isCheckmate(state.board, side);
+      if (mate) {
+        state.status = `${side === Side.RED ? "红方" : "黑方"}被将死，对局结束。`;
+      } else if (check) {
+        state.status = `${side === Side.RED ? "红方" : "黑方"}被将军，请立即应对。`;
+      } else {
+        state.status = `当前轮到：${side === Side.RED ? "红方" : "黑方"}。`;
+      }
+    }
+
+    function handleSquareClick(key) {
+      const piece = getPiece(state.board, key);
+
+      if (state.selected) {
+        if (key === state.selected) {
+          state.selected = null;
+          state.legalTargets = [];
+          render();
+          return;
+        }
+
+        const move = { keyFrom: state.selected, keyTo: key, from: parseKey(state.selected), to: parseKey(key) };
+        if (isLegalMove(state.board, state.sideToMove, move)) {
+          state.board = applyMove(state.board, move);
+          state.lastMove = move;
+          state.selected = null;
+          state.legalTargets = [];
+          state.sideToMove = opponent(state.sideToMove);
+          updateStatusAfterMove();
+          render();
+          return;
+        }
+
+        if (piece && piece.side === state.sideToMove) {
+          state.selected = key;
+          state.legalTargets = legalMovesFrom(state.board, state.sideToMove, key).map((m) => m.keyTo);
+          state.status = `${state.sideToMove === Side.RED ? "红方" : "黑方"}重新选择了 ${toHuman(key)}，共 ${state.legalTargets.length} 个合法走法。`;
+          render();
+          return;
+        }
+
+        state.status = "非法走法：目标位置不可达或会暴露己方将帅。";
+        render();
+        return;
+      }
+
+      if (piece && piece.side === state.sideToMove) {
+        state.selected = key;
+        state.legalTargets = legalMovesFrom(state.board, state.sideToMove, key).map((m) => m.keyTo);
+        state.status = `${state.sideToMove === Side.RED ? "红方" : "黑方"}选择了 ${toHuman(key)}，共 ${state.legalTargets.length} 个合法走法。`;
+        render();
+      }
+    }
+
+    function render() {
+      boardEl.innerHTML = "";
+      statusEl.textContent = state.status;
+      turnIndicator.textContent = `当前轮到：${state.sideToMove === Side.RED ? "红方" : "黑方"}`;
+
+      for (let y = 9; y >= 0; y -= 1) {
+        for (let x = 0; x < 9; x += 1) {
+          const key = coordKey(x, y);
+          const square = document.createElement("button");
+          square.type = "button";
+          square.className = "square";
+          square.dataset.coord = key;
+          square.dataset.river = y === 4 || y === 5;
+          square.title = `位置 ${toHuman(key)}`;
+
+          if (state.selected === key) square.classList.add("selected");
+          if (state.legalTargets.includes(key)) square.classList.add("legal-target");
+          if (state.lastMove && (state.lastMove.keyFrom === key || state.lastMove.keyTo === key)) {
+            square.classList.add("last-move");
+          }
+
+          const piece = getPiece(state.board, key);
+          if (piece) {
+            const el = document.createElement("span");
+            el.className = `piece ${piece.side}`;
+            el.textContent = pieceSymbols[piece.type][piece.side];
+            el.setAttribute("aria-label", `${piece.side === Side.RED ? "红" : "黑"}${piece.type}`);
+            square.appendChild(el);
+          } else {
+            const label = document.createElement("span");
+            label.style.fontSize = "11px";
+            label.style.color = "#9ca3af";
+            label.textContent = toHuman(key);
+            square.appendChild(label);
+          }
+
+          square.addEventListener("click", () => handleSquareClick(key));
+          boardEl.appendChild(square);
+        }
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>
