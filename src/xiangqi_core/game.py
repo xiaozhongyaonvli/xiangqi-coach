@@ -9,7 +9,7 @@ from xiangqi_core.board import Position, initial_position
 from xiangqi_core.errors import GameOverError, IllegalMoveError
 from xiangqi_core.legality import generate_legal_moves, is_checkmate, is_legal_move
 from xiangqi_core.move import Move
-from xiangqi_core.types import Side
+from xiangqi_core.types import PieceType, Side
 
 
 class GameResult(str, Enum):
@@ -37,9 +37,13 @@ class Game:
         if not is_legal_move(self, move):
             raise IllegalMoveError(f"Illegal move: {move.to_str()}")
 
-        self.position.board.move_piece(move)
+        captured = self.position.board.move_piece(move)
         self.history.append(move)
         self.position.side_to_move = self.position.side_to_move.opponent()
+
+        if captured is not None and captured.type is PieceType.KING:
+            self.result = GameResult.RED_WIN if captured.side is Side.BLACK else GameResult.BLACK_WIN
+            return
 
         opponent = self.position.side_to_move
         if is_checkmate(self.position, opponent):
