@@ -17,3 +17,6 @@ A minimal interactive demo is available for manual exploration of the rules:
 ```bash
 python -m xiangqi_cli_demo
 ```
+
+## Frontend Preview
+A static, client-side board for local play lives under `frontend/`. Open the root `index.html` (or `frontend/index.html`) in a browser or serve the repo with a simple HTTP server to explore the v1.0.0 experience.
