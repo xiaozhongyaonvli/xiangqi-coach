@@ -203,6 +203,31 @@
       box-shadow: 0 6px 12px rgba(0, 0, 0, 0.14);
     }
 
+    .labels {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 14px;
+      color: #4d596a;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 12px;
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #ebe3d7;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
     .status-panel {
       background: white;
       border-radius: 16px;
@@ -259,12 +284,33 @@
         </div>
       </div>
       <div class="board" id="board" aria-label="象棋棋盘"></div>
+      <div class="labels" aria-hidden="true">
+        <span>横轴：a - i</span>
+        <span>纵轴：0 - 9（红方视角自下而上）</span>
+      </div>
     </section>
 
     <aside class="status-panel">
       <h2 class="status-title">对局信息</h2>
       <p class="status-message" id="status">点击红方棋子开始走子，系统会阻止所有非法走法。</p>
       <p class="hint">提示：点击棋子后会高亮可走位置，若选择非法目标会显示原因并保持轮次。</p>
+
+      <div class="legend">
+        <div class="legend-item">
+          <span class="piece red">帅</span><span>红方</span>
+        </div>
+        <div class="legend-item">
+          <span class="piece black">将</span><span>黑方</span>
+        </div>
+        <div class="legend-item">
+          <span class="piece" style="border-color: var(--accent); box-shadow: inset 0 0 0 2px rgba(22, 160, 133, 0.2);"></span>
+          <span>当前选中</span>
+        </div>
+        <div class="legend-item">
+          <span class="piece" style="border-color: var(--highlight); box-shadow: inset 0 0 0 2px rgba(241, 196, 15, 0.35);"></span>
+          <span>上一步走子</span>
+        </div>
+      </div>
     </aside>
   </div>
 
@@ -670,6 +716,12 @@
             el.textContent = pieceSymbols[piece.type][piece.side];
             el.setAttribute("aria-label", `${piece.side === Side.RED ? "红" : "黑"}${piece.type}`);
             square.appendChild(el);
+          } else {
+            const label = document.createElement("span");
+            label.style.fontSize = "11px";
+            label.style.color = "#9ca3af";
+            label.textContent = toHuman(key);
+            square.appendChild(label);
           }
 
           square.addEventListener("click", () => handleSquareClick(key));

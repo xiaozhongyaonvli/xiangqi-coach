@@ -1,7 +1,10 @@
+import pytest
+
 from xiangqi_core import (
     Board,
     Coord,
     Game,
+    GameOverError,
     GameResult,
     Move,
     Piece,
@@ -54,3 +57,22 @@ def test_checkmate_detection_and_legal_move_generation() -> None:
     assert position.side_to_move is Side.BLACK
     assert is_checkmate(position, Side.BLACK)
     assert generate_legal_moves(position, Side.BLACK) == []
+
+
+def test_game_ends_when_king_is_captured() -> None:
+    board = Board(
+        {
+            Coord(0, 0): Piece(Side.RED, PieceType.KING),
+            Coord(4, 5): Piece(Side.RED, PieceType.ROOK),
+            Coord(4, 9): Piece(Side.BLACK, PieceType.KING),
+        }
+    )
+    position = Position(board=board, side_to_move=Side.RED)
+    game = Game(position=position)
+
+    winning_move = Move(Coord(4, 5), Coord(4, 9))
+    game.apply_move(winning_move)
+
+    assert game.result is GameResult.RED_WIN
+    with pytest.raises(GameOverError):
+        game.apply_move(Move(Coord(0, 0), Coord(0, 1)))
